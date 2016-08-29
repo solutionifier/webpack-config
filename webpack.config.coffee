@@ -10,18 +10,22 @@ module.exports = (options) ->
 
   dirname = dirname || __dirname
 
-  TEST   = false
-  BUILD  = false
-  SILENT = false
-  MOCK   = false
-  ENV    = process.env.ENV || 'DEV'
+  TEST                = false
+  BUILD               = false
+  DEV                 = false
+  SILENT              = false
+  MOCK                = false
+  EXCLUDE_SOURCEMAPS  = false
+  ENV                 = process.env.ENV || 'DEV'
 
   process.argv.forEach (arg) ->
-    TEST   = true  if arg == '--test'
-    BUILD  = true  if arg == '--build'
-    SILENT = true  if arg == '--silent'
+    TEST               = true  if arg == '--test'
+    BUILD              = true  if arg == '--build'
+    SILENT             = true  if arg == '--silent'
+    DEV                = true  if arg == '--dev'
+    EXCLUDE_SOURCEMAPS = true  if arg == '--exclude-sourcemaps'
 
-    ENV = 'DEV'  if arg == '--dev'
+    ENV = 'DEV'  if DEV
     ENV = 'QA'   if arg == '--qa'
     ENV = 'PROD' if arg == '--prod'
     MOCK = true  if arg == '--mock'
@@ -64,6 +68,12 @@ module.exports = (options) ->
   else
     config.devtool = 'eval'
 
+  # Reference: https://github.com/jtangelder/sass-loader#source-maps
+  if DEV
+    scssLoader = 'style-loader!css-loader?sourceMap!sass-loader?sourceMap'
+  else
+    scssLoader = ExtractTextPlugin.extract 'style-loader', 'css-loader!sass-loader'
+
   # Reference: http://webpack.github.io/docs/configuration.html#module-loaders
   # List: http://webpack.github.io/docs/list-of-loaders.html
   config.module =
@@ -93,7 +103,7 @@ module.exports = (options) ->
       loader: 'json'
     ,
       test: /\.scss$/
-      loader: ExtractTextPlugin.extract 'style-loader', 'css-loader!sass-loader'
+      loader: scssLoader
     ,
       test: /\.css$/
       loader: ExtractTextPlugin.extract 'style-loader', 'css-loader'
@@ -175,6 +185,8 @@ module.exports = (options) ->
     config.plugins.push new webpack.optimize.DedupePlugin()
 
     uglifyOptions = options.uglifyOptions || { mangle: true }
+
+    uglifyOptions.sourceMap = false if EXCLUDE_SOURCEMAPS
 
     config.plugins.push new webpack.optimize.UglifyJsPlugin uglifyOptions
 
